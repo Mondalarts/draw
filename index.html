@@ -128,14 +128,14 @@
         // --- IMPORTANT: API Configuration for GitHub Deployment ---
         // REPLACE "YOUR_GEMINI_API_KEY_HERE" with your actual Gemini API Key.
         // Get your key here: https://ai.google.dev/gemini-api/docs/api-key
-        const apiKey = "YOUR_GEMINI_API_KEY_HERE"; 
+        const apiKey = "AIzaSyCKJI3yq4S206BxqlsLEpkc7CEjaPVAQ20"; 
         
         let isApiKeySet = false;
         
         // Check if API key is set when the document loads
         document.addEventListener('DOMContentLoaded', () => {
             const apiWarning = document.getElementById('apiWarning');
-            if (apiKey === "AIzaSyCKJI3yq4S206BxqlsLEpkc7CEjaPVAQ20" || apiKey.trim() === "") {
+            if (apiKey === "YOUR_GEMINI_API_KEY_HERE" || apiKey.trim() === "") {
                 apiWarning.classList.remove('hidden');
                 submitBtn.disabled = true;
                 isApiKeySet = false;
@@ -147,7 +147,7 @@
                 toggleSubmitButton(); 
             }
         });
-        
+        // api add kkore de
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
         
         // --- Canvas Setup ---
