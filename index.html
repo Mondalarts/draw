@@ -52,6 +52,12 @@
             AI Sketch Guessing Game
         </h1>
 
+        <!-- API Key Warning/Instructions -->
+        <div id="apiWarning" class="p-3 mb-4 bg-red-100 border-l-4 border-red-500 text-red-700 hidden rounded-md" role="alert">
+            <p class="font-bold">API Key Required</p>
+            <p>Please open the console (F12) and follow the instructions to set your Gemini API Key in the `index.html` file's script section to enable the game.</p>
+        </div>
+
         <!-- Mode Selector -->
         <div class="flex justify-center space-x-4 mb-6">
             <button id="mode1Btn" onclick="setMode(1)" class="game-button px-4 py-2 rounded-full text-white font-semibold bg-blue-600 hover:bg-blue-700 shadow-md">
@@ -119,8 +125,29 @@
     </div>
 
     <script>
-        // --- API Configuration ---
-        const apiKey = ""; // Canvas environment provides this if empty
+        // --- IMPORTANT: API Configuration for GitHub Deployment ---
+        // REPLACE "YOUR_GEMINI_API_KEY_HERE" with your actual Gemini API Key.
+        // Get your key here: https://ai.google.dev/gemini-api/docs/api-key
+        const apiKey = "YOUR_GEMINI_API_KEY_HERE"; 
+        
+        let isApiKeySet = false;
+        
+        // Check if API key is set when the document loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const apiWarning = document.getElementById('apiWarning');
+            if (apiKey === "AIzaSyCKJI3yq4S206BxqlsLEpkc7CEjaPVAQ20" || apiKey.trim() === "") {
+                apiWarning.classList.remove('hidden');
+                submitBtn.disabled = true;
+                isApiKeySet = false;
+                console.error("!!! GEMINI API KEY MISSING !!! Please replace 'YOUR_GEMINI_API_KEY_HERE' in the index.html script to enable API calls.");
+            } else {
+                apiWarning.classList.add('hidden');
+                isApiKeySet = true;
+                // Re-enable submit button if canvas is not blank
+                toggleSubmitButton(); 
+            }
+        });
+        
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
         
         // --- Canvas Setup ---
@@ -146,7 +173,6 @@
         const eraserBtn = document.getElementById('eraserBtn');
         const penSizeSlider = document.getElementById('penSizeSlider');
         const eraserSizeSlider = document.getElementById('eraserSizeSlider');
-        // Removed storyBtn and storyOutput declarations
         
         let isDrawing = false;
         let currentMode = 1; // 1: Free Draw & Guess, 2: Prompted Draw & Rate
@@ -203,7 +229,8 @@
         }
 
         function toggleSubmitButton() {
-            submitBtn.disabled = isCanvasBlank();
+            // Only enable if API Key is set AND canvas is not blank
+            submitBtn.disabled = !isApiKeySet || isCanvasBlank();
         }
 
         // --- Tool Functions ---
@@ -268,6 +295,7 @@
 
         function startDrawing(e) {
             e.preventDefault();
+            if (!isApiKeySet) return; // Prevent drawing if key is missing
             isDrawing = true;
             const pos = getMousePos(e);
             ctx.beginPath();
@@ -303,7 +331,6 @@
         function clearCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             resultBox.classList.add('hidden');
-            // Removed story button/output hiding logic
             toggleSubmitButton();
         }
         
@@ -370,9 +397,6 @@
         setMode(1);
         updateToolUI(); // Ensure tools are styled correctly on load
 
-        // --- LLM Powered Storytelling Feature (Function removed) ---
-        // The generateStory function has been completely removed.
-
         // --- API Interaction (Multimodal) ---
 
         function getBase64Image() {
@@ -382,12 +406,10 @@
         }
 
         async function submitDrawing() {
-            if (isCanvasBlank()) {
-                console.error('Please draw something first!'); 
+            if (!isApiKeySet || isCanvasBlank()) {
+                console.error('API Key is missing or canvas is blank.'); 
                 return;
             }
-
-            // Reset Storyteller on new submission (Removed logic to hide storyteller elements)
 
             submitBtn.disabled = true;
             spinner.classList.remove('hidden');
@@ -471,7 +493,6 @@
                 resultTitle.classList.add('text-blue-600');
                 resultText.textContent = result.trim();
                 
-                // Removed logic to show Storyteller button
             } else {
                 // Mode 2 Result: Rating
                 
