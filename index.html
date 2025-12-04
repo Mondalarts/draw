@@ -1,536 +1,703 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Drawing Guessing Game</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght400;600;800&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f0f4f8;
-            transition: background-color 0.3s;
-        }
-        .container {
-            max-width: 900px;
-        }
-        #drawingCanvas {
-            border: 2px solid #3b82f6;
-            background-color: white;
-            touch-action: none; /* Critical for mobile drawing */
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-        .game-button {
-            transition: all 0.2s;
-        }
-        .game-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.5);
-        }
-        .tool-button {
-             transition: all 0.15s;
-        }
-        .loading-ring {
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top: 4px solid white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>AI Sketch Guessing — Neumorphism + Gemini</title>
+
+<!-- Google font (Inter) -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#eef1f4;
+    --card:#f6f7f9;
+    --soft-shadow: 14px 14px 30px rgba(170,180,200,0.25), -8px -8px 20px rgba(255,255,255,0.9);
+    --pressed-shadow: inset 6px 6px 12px rgba(170,180,200,0.35), inset -6px -6px 12px rgba(255,255,255,0.9);
+    --accent:#4b84ff;
+    --accent-2:#66d6a9;
+    --muted:#6f7a86;
+    --danger:#d95f52;
+    --radius:16px;
+    --transition:200ms cubic-bezier(.2,.9,.3,1);
+  }
+
+  html,body{
+    height:100%;
+    margin:0;
+    font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: radial-gradient(1200px 600px at 10% 10%, rgba(75,132,255,0.03), transparent 8%),
+                linear-gradient(180deg, var(--bg), #f7f8fa 60%);
+    color:#2b3440;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+
+  .wrap{
+    width:100%;
+    max-width:1020px;
+    margin:auto;
+    padding:20px;
+  }
+
+  .card{
+    background:var(--card);
+    border-radius:22px;
+    padding:28px;
+    box-shadow: var(--soft-shadow);
+  }
+
+  header{
+    text-align:center;
+    margin-bottom:20px;
+  }
+
+  header h1{
+    margin:0;
+    font-size:30px;
+    letter-spacing:-0.4px;
+    color:#22303f;
+    font-weight:800;
+  }
+
+  .modes{
+    display:flex;
+    gap:14px;
+    justify-content:center;
+    margin-top:14px;
+  }
+
+  .mode-btn{
+    --btn-w:240px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:var(--btn-w);
+    padding:12px 18px;
+    border-radius:999px;
+    background:linear-gradient(180deg,#f8f9fb,#f2f4f7);
+    box-shadow: 6px 6px 14px rgba(170,180,200,0.28), -6px -6px 14px rgba(255,255,255,0.8);
+    border:none;
+    cursor:pointer;
+    font-weight:700;
+    color:var(--muted);
+    transition: all var(--transition);
+    position:relative;
+    outline: none;
+    user-select:none;
+  }
+
+  .mode-btn:hover{ transform: translateY(-2px); }
+
+  .mode-btn.active{
+    color:white;
+    background:linear-gradient(180deg,var(--accent), #3b6ef2);
+    box-shadow:
+      inset 6px 6px 12px rgba(0,0,0,0.15), inset -6px -6px 12px rgba(255,255,255,0.06),
+      0 8px 28px rgba(75,132,255,0.12), 0 2px 8px rgba(75,132,255,0.08);
+  }
+
+  .toolbar{
+    margin:20px auto;
+    background:linear-gradient(180deg,#f8f9fb,#f3f5f7);
+    border-radius:12px;
+    padding:12px;
+    display:flex;
+    gap:12px;
+    align-items:center;
+    justify-content:space-between;
+    box-shadow: var(--soft-shadow);
+  }
+
+  .controls-left{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+
+  .label{ color:var(--muted); font-weight:600; font-size:13px; }
+
+  .color-swatch{
+    width:44px;height:44px;border-radius:12px;
+    box-shadow: 6px 6px 12px rgba(170,180,200,0.18), -6px -6px 12px rgba(255,255,255,0.9);
+    border: 2px solid rgba(40,50,60,0.03);
+    display:inline-flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+
+  .tiny-button{
+    display:inline-flex;align-items:center;justify-content:center;
+    padding:8px 12px;border-radius:10px;background:var(--card);border:none;
+    box-shadow: 6px 6px 12px rgba(170,180,200,0.2), -6px -6px 12px rgba(255,255,255,0.9);
+    cursor:pointer;font-weight:700;color:var(--muted);
+  }
+
+  .tiny-button.active{
+    box-shadow: var(--pressed-shadow);
+    background:linear-gradient(180deg,#eef2f6,#e9edf2);
+    color:#2a3442;
+  }
+
+  .sliders{ display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
+
+  input[type="range"]{
+    -webkit-appearance:none;height:6px;border-radius:6px;background:#e4e8ee;
+    outline:none;width:140px;
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);
+    box-shadow: 0 4px 10px rgba(75,132,255,0.28);
+    cursor:pointer;
+  }
+
+  .canvas-wrap{
+    margin-top:22px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+
+  #drawing{
+    width:600px; height:420px; border-radius:12px;
+    background:linear-gradient(180deg,#ffffff,#fbfdff);
+    box-shadow: 6px 6px 20px rgba(170,180,200,0.18), -6px -6px 20px rgba(255,255,255,0.95);
+    border: 1px solid rgba(70,110,255,0.08);
+    cursor:crosshair;
+    touch-action:none;
+  }
+
+  .actions{ margin-top:16px; display:flex; gap:16px; flex-wrap:wrap; justify-content:center; }
+
+  .action-btn{
+    min-width:180px;padding:12px 18px;border-radius:12px;border:none;
+    cursor:pointer;font-weight:800;letter-spacing:0.2px;
+    box-shadow: 6px 6px 14px rgba(170,180,200,0.22), -6px -6px 14px rgba(255,255,255,0.9);
+    transition:all var(--transition);
+  }
+  .action-btn:active{ transform: translateY(2px); }
+  .clear { background:linear-gradient(180deg,#fff,#f5f7fa); color: #2d3440; }
+  .submit { background:linear-gradient(180deg,var(--accent-2), #4dd3a9); color:white; box-shadow: 0 10px 30px rgba(102,214,169,0.18); }
+
+  .status{ margin-top:18px; text-align:center; color:var(--muted); }
+  .score{ margin-top:8px;color:var(--danger);font-weight:800; }
+
+  .api-warning{
+    margin-top:14px;padding:12px;border-radius:10px;background:#fff6f6;border-left:4px solid rgba(217,95,82,0.9);color:#7a2a2a;display:none;
+  }
+
+  .result-box{
+    margin-top:18px;padding:14px;border-radius:12px;background:linear-gradient(180deg,#ffffff,#f8fbf9);
+    box-shadow: 6px 6px 18px rgba(170,180,200,0.12), -6px -6px 18px rgba(255,255,255,0.95);
+    text-align:center; display:none;
+  }
+
+  .muted-small{ color:var(--muted); font-size:13px; margin-top:6px; }
+
+  @media (max-width:760px){
+    #drawing{ width:92%; height:360px; }
+    .mode-btn{ min-width:140px; padding:10px; }
+    .toolbar{ flex-direction:column; align-items:stretch; gap:10px; }
+    .sliders{ justify-content:flex-end; }
+  }
+</style>
 </head>
-<body class="p-4 md:p-8 flex items-center justify-center min-h-screen">
+<body>
+  <div class="wrap">
+    <div class="card" role="main" aria-labelledby="title">
+      <header>
+        <h1 id="title">AI Sketch Guessing Game</h1>
 
-    <div class="container bg-white rounded-xl shadow-2xl p-6 md:p-10 w-full">
-        <h1 class="text-3xl md:text-4xl font-extrabold text-center mb-6 text-blue-600">
-            AI Sketch Guessing Game
-        </h1>
+        <div class="modes" role="tablist" aria-label="Modes">
+          <button class="mode-btn active" data-mode="mode1" id="mode1Btn" role="tab" aria-selected="true">Mode 1: Free Draw &amp; Guess</button>
+          <button class="mode-btn" data-mode="mode2" id="mode2Btn" role="tab" aria-selected="false">Mode 2: Prompted Draw &amp; Rate</button>
+        </div>
+      </header>
 
-        <!-- API Key Warning/Instructions -->
-        <div id="apiWarning" class="p-3 mb-4 bg-red-100 border-l-4 border-red-500 text-red-700 hidden rounded-md" role="alert">
-            <p class="font-bold">API Key Required</p>
-            <p>Please open the console (F12) and follow the instructions to set your Gemini API Key in the `index.html` file's script section to enable the game.</p>
+      <div style="text-align:center;">
+        <div style="color:var(--muted);font-weight:700">Your challenge:</div>
+        <div style="font-size:36px;margin-top:8px;color:#c04b3f;font-weight:800" id="challengeLabel">—</div>
+      </div>
+
+      <div class="toolbar" role="region" aria-label="Drawing tools">
+        <div class="controls-left">
+          <div class="label">Color</div>
+          <div class="color-swatch" title="Pick color" aria-hidden="true">
+            <input type="color" id="colorPicker" style="width:36px;height:36px;border-radius:8px;border:none;background:transparent;cursor:pointer" value="#222222">
+          </div>
+
+          <button class="tiny-button active" id="penBtn" aria-pressed="true" title="Pen (draw)">Pen</button>
+          <button class="tiny-button" id="eraserBtn" aria-pressed="false" title="Eraser (erase)">Eraser</button>
         </div>
 
-        <!-- Mode Selector -->
-        <div class="flex justify-center space-x-4 mb-6">
-            <button id="mode1Btn" onclick="setMode(1)" class="game-button px-4 py-2 rounded-full text-white font-semibold bg-blue-600 hover:bg-blue-700 shadow-md">
-                Mode 1: Free Draw & Guess
-            </button>
-            <button id="mode2Btn" onclick="setMode(2)" class="game-button px-4 py-2 rounded-full text-blue-600 font-semibold border-2 border-blue-600 hover:bg-blue-50">
-                Mode 2: Prompted Draw & Rate
-            </button>
+        <div class="sliders" aria-hidden="false">
+          <div style="display:flex;flex-direction:column;align-items:flex-start">
+            <div class="label">Pen Size</div>
+            <input type="range" id="penSize" min="1" max="30" value="4" />
+          </div>
+
+          <div style="display:flex;flex-direction:column;align-items:flex-start">
+            <div class="label">Eraser Size</div>
+            <input type="range" id="eraserSize" min="6" max="60" value="30" />
+          </div>
+        </div>
+      </div>
+
+      <div class="canvas-wrap" aria-label="Drawing area">
+        <canvas id="drawing" width="1200" height="800" role="img" aria-label="drawing canvas"></canvas>
+
+        <div class="actions">
+          <button class="action-btn clear" id="clearBtn" title="Clear drawing">Clear Drawing</button>
+          <button class="action-btn submit" id="submitBtn" title="Submit drawing" disabled>Guess / Submit Drawing <span id="spinner" style="display:none;margin-left:8px;">⏳</span></button>
         </div>
 
-        <!-- Mode 2 Prompt Display -->
-        <div id="mode2Prompt" class="text-center mb-4 hidden">
-            <p class="text-xl font-medium text-gray-700">Your challenge: Draw a...</p>
-            <p id="currentPrompt" class="text-4xl font-bold text-red-500 mt-1"></p>
-        </div>
-        
-        <!-- Drawing Tools -->
-        <div class="flex flex-wrap justify-center items-center gap-4 mb-6 p-3 bg-gray-100 rounded-lg shadow-inner">
-            
-            <!-- Pen Color -->
-            <label for="colorPicker" class="text-gray-700 font-medium">Color:</label>
-            <input type="color" id="colorPicker" value="#333333" class="w-10 h-10 rounded-lg border-2 border-gray-400 cursor-pointer">
-            
-            <!-- Tool Selector -->
-            <button id="penBtn" onclick="setPenMode()" class="tool-button px-4 py-2 rounded-lg text-white font-semibold bg-blue-600 shadow-md">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1 inline" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-3.182-1.06a4 4 0 00-5.656 5.656l-3.32 3.32a1.5 1.5 0 000 2.122l5.656 5.656a1.5 1.5 0 002.122 0l3.32-3.32a4 4 0 005.656-5.656L17.707 5.707a1 1 0 00-1.414-1.414l-.943.943z"/></svg>
-                Pen
-            </button>
-            <button id="eraserBtn" onclick="setEraserMode()" class="tool-button px-4 py-2 rounded-lg text-gray-700 font-semibold border-2 border-gray-400 hover:bg-gray-100 bg-white">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1 inline" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
-                Eraser
-            </button>
-
-            <!-- Pen Size Slider -->
-            <label for="penSizeSlider" class="text-gray-700 font-medium">Pen Size:</label>
-            <input type="range" id="penSizeSlider" min="1" max="15" value="5" class="w-20 cursor-pointer accent-blue-600">
-            
-            <!-- Eraser Size Slider -->
-            <label for="eraserSizeSlider" class="text-gray-700 font-medium">Eraser Size:</label>
-            <input type="range" id="eraserSizeSlider" min="10" max="50" value="25" class="w-20 cursor-pointer accent-blue-600">
-
+        <div class="status">
+          <div id="score" class="muted-small">Match Score: —</div>
+          <div id="serviceMsg" class="muted-small"></div>
         </div>
 
-        <!-- Canvas and Controls -->
-        <div class="flex flex-col items-center">
-            <canvas id="drawingCanvas" width="400" height="400" class="w-full h-auto max-h-[400px]"></canvas>
-
-            <div class="mt-6 flex flex-wrap justify-center gap-4 w-full">
-                <button onclick="clearCanvas()" class="game-button flex items-center justify-center bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg shadow-md">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm-1.06-2.828l-8.367 8.368a6 6 0 019.238-9.988z" clip-rule="evenodd" /><path fill-rule="evenodd" d="M3 10a7 7 0 1114 0 7 7 0 01-14 0zm6 1V9a1 1 0 10-2 0v2a1 1 0 102 0zm2 0V9a1 1 0 10-2 0v2a1 1 0 102 0z" clip-rule="evenodd" /></svg>
-                    Clear Drawing
-                </button>
-                <button id="submitBtn" onclick="submitDrawing()" class="game-button flex items-center justify-center bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg shadow-md disabled:opacity-50" disabled>
-                    <span id="submitText">Guess / Submit Drawing</span>
-                    <div id="spinner" class="loading-ring ml-2 hidden"></div>
-                </button>
-            </div>
+        <div id="apiWarning" class="api-warning" role="alert">
+          <strong>API Key Required.</strong> Replace <code>const apiKey = "YOUR_GEMINI_API_KEY_HERE";</code> in the script to enable AI calls. Without the key the submit button remains disabled.
         </div>
 
-        <!-- Result Display (Storyteller elements removed) -->
-        <div id="resultBox" class="mt-8 p-4 md:p-6 rounded-xl text-center shadow-lg transition-all duration-300 hidden">
-            <p id="resultTitle" class="text-2xl font-bold mb-2"></p>
-            <p id="resultText" class="text-lg text-gray-700"></p>
+        <div id="resultBox" class="result-box" role="status" aria-live="polite">
+          <div id="resultTitle" style="font-weight:800;font-size:20px;color:#2a3442"></div>
+          <div id="resultText" style="margin-top:8px;color:#475569"></div>
         </div>
+
+      </div>
     </div>
+  </div>
 
-    <script>
-        // --- IMPORTANT: API Configuration for GitHub Deployment ---
-        // REPLACE "YOUR_GEMINI_API_KEY_HERE" with your actual Gemini API Key.
-        // Get your key here: https://ai.google.dev/gemini-api/docs/api-key
-        const apiKey = "AIzaSyCKJI3yq4S206BxqlsLEpkc7CEjaPVAQ20"; 
-        
-        let isApiKeySet = false;
-        
-        // Check if API key is set when the document loads
-        document.addEventListener('DOMContentLoaded', () => {
-            const apiWarning = document.getElementById('apiWarning');
-            if (apiKey === "YOUR_GEMINI_API_KEY_HERE" || apiKey.trim() === "") {
-                apiWarning.classList.remove('hidden');
-                submitBtn.disabled = true;
-                isApiKeySet = false;
-                console.error("!!! GEMINI API KEY MISSING !!! Please replace 'YOUR_GEMINI_API_KEY_HERE' in the index.html script to enable API calls.");
-            } else {
-                apiWarning.classList.add('hidden');
-                isApiKeySet = true;
-                // Re-enable submit button if canvas is not blank
-                toggleSubmitButton(); 
+<script>
+/* ---------------------------
+   CONFIG: set your API key
+   Replace the placeholder with your key.
+   --------------------------- */
+const apiKey = "AIzaSyCKJI3yq4S206BxqlsLEpkc7CEjaPVAQ20";
+
+/* Build API URL: (note: keep key server-side in production)
+   This uses Google's generative language endpoint pattern.
+   Replace model name if needed. */
+const apiUrlBase = "https://generativelanguage.googleapis.com/v1beta/models";
+const apiModel = "gemini-2.5-flash-preview-09-2025"; // adjust if needed
+const apiUrl = `${apiUrlBase}/${apiModel}:generateContent?key=${apiKey}`;
+
+/* ---------------------------
+   UI state & elements
+   --------------------------- */
+const canvas = document.getElementById('drawing');
+const ctx = canvas.getContext('2d', { willReadFrequently: false });
+const submitBtn = document.getElementById('submitBtn');
+const spinner = document.getElementById('spinner');
+const resultBox = document.getElementById('resultBox');
+const resultTitle = document.getElementById('resultTitle');
+const resultText = document.getElementById('resultText');
+const challengeLabel = document.getElementById('challengeLabel');
+const apiWarning = document.getElementById('apiWarning');
+const scoreEl = document.getElementById('score');
+
+const colorPicker = document.getElementById('colorPicker');
+const penBtn = document.getElementById('penBtn');
+const eraserBtn = document.getElementById('eraserBtn');
+const penSizeSlider = document.getElementById('penSize');
+const eraserSizeSlider = document.getElementById('eraserSize');
+const clearBtn = document.getElementById('clearBtn');
+
+const mode1Btn = document.getElementById('mode1Btn');
+const mode2Btn = document.getElementById('mode2Btn');
+
+/* ---------------------------
+   Drawing state
+   --------------------------- */
+let currentColor = '#222222';
+let isErasing = false;
+let penSize = Number(penSizeSlider.value);
+let eraserSize = Number(eraserSizeSlider.value);
+
+let isDrawing = false;
+let lastPos = {x:0, y:0};
+
+let currentMode = 1; // 1 = guess, 2 = rate
+let currentChallenge = '';
+
+/* ---------------------------
+   Challenge list (expanded)
+   --------------------------- */
+const challengeList = [
+ 'Apple','Banana','Carrot','Dolphin','Elephant','Frog','Guitar','Hat','Ice Cream','Jellyfish',
+ 'Kite','Laptop','Mushroom','Noodle','Owl','Pineapple','Queen','Robot','Star','Taco',
+ 'Umbrella','Volcano','Watermelon','Xylophone','Yacht','Zebra','Airplane','Balloon','Camera','Diamond',
+ 'Eel','Feather','Globe','Hammer','Island','Jacket','Kangaroo','Lighthouse','Magnet','Necklace',
+ 'Octopus','Penguin','Quill','Rocket','Snowman','Train','Unicorn','Violin','Window','Wrench',
+ 'Anvil','Bee','Castle','Dice','Egg','Fence','Grapes','Hedgehog','Igloo','Jar',
+ 'Key','Lemon','Mitten','Net','Orange','Pencil','Question Mark','Ring','Snail','Tent',
+ 'Toothbrush','Vase','Wagon','Yo-yo','Zipper','Acorn','Book','Candle','Cloud','Dinosaur',
+ 'Door','Fireplace','Fork','Glasses','House','Insects','Juice Box','Kettle','Ladder','Moon',
+ 'Nail','Pizza','Sofa','Spoon','Sun','Table','Television','Tire','Tooth','Traffic Light',
+ 'Tree','Truck','Turtle','Watch','Whale','Whisk','Yarn','Backpack','Baseball Bat','Bowling Pin',
+ 'Bridge','Broccoli','Bus','Cactus','Crayon','Crown','Cupcake','Donut','Drum','Envelope',
+ 'Fan','Flashlight','Fox','Glove','Helmet','Jigsaw Puzzle','Lollipop','Microscope','Mirror','Mountain',
+ 'Mouse','Paintbrush','Pants','Pillow','Pretzel','Pumkin','Radio','Rainbow','Roller Skate','Scissors',
+ 'Shoe','Siren','Skateboard','Spaceship','Spider','Stairs','Stop Sign','Suitcase','Swing','Telescope',
+ 'Tractor','Trombone','Trophy','Wallet','Washing Machine','Worm','Anchor','Blender','Boots','Bucket',
+ 'Cabinet','Canoe','Compass','Crab','Desk','Eagle','Headphones','Hot Dog','Juggling Balls','Keyboard',
+ 'Lobster','Microphone','Nose','Popsicle','Sack','Saucepan','Seashell','Shirt','Snake','Spiral',
+ 'Squid','Stool','Street Lamp','Submarine','Swan','Sword','Teapot','Tiger','Toast','Towel',
+ 'Unicycle','Vulture','Wallet','Wrench','Castle','Fence','Mug','Ship','Sock','Zipper',
+ 'Camera','T-shirt','Globe','Lantern','Tent','Muffin','Cookie','Sailboat','Snowflake'
+];
+
+/* ---------------------------
+   Utility: Canvas sizing & crispness
+   --------------------------- */
+function fixCanvasSize(){
+  const rect = canvas.getBoundingClientRect();
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = Math.round(rect.width * ratio);
+  canvas.height = Math.round(rect.height * ratio);
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  // fill background white so isCanvasBlank works consistently
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0,0,canvas.width/ratio,canvas.height/ratio);
+}
+function resizeCanvasToFit(){
+  // keep default layout width (CSS) but set internal res
+  const maxSize = Math.min(window.innerWidth - 120, 800);
+  const size = Math.max(300, Math.min(600, maxSize));
+  canvas.style.width = `${size}px`;
+  canvas.style.height = `${Math.round(size * 0.7)}px`; // slightly rectangular
+  fixCanvasSize();
+}
+/* ensure initial size */
+window.addEventListener('resize', resizeCanvasToFit);
+resizeCanvasToFit();
+
+/* ---------------------------
+   Tool UI updates
+   --------------------------- */
+function updateToolUI(){
+  // update classes for neumorphism feel
+  penBtn.classList.remove('active');
+  eraserBtn.classList.remove('active');
+  if(isErasing){
+    eraserBtn.classList.add('active');
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.strokeStyle = 'rgba(0,0,0,1)';
+    ctx.lineWidth = eraserSize;
+  } else {
+    penBtn.classList.add('active');
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = currentColor;
+    ctx.lineWidth = penSize;
+  }
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+}
+
+/* wire tool controls */
+colorPicker.addEventListener('input', (e)=>{ currentColor = e.target.value; isErasing = false; updateToolUI(); });
+penSizeSlider.addEventListener('input', (e)=>{ penSize = Number(e.target.value); updateToolUI(); });
+eraserSizeSlider.addEventListener('input', (e)=>{ eraserSize = Number(e.target.value); updateToolUI(); });
+
+penBtn.addEventListener('click', ()=>{ isErasing = false; updateToolUI(); });
+eraserBtn.addEventListener('click', ()=>{ isErasing = true; updateToolUI(); });
+
+clearBtn.addEventListener('click', () => {
+  clearCanvas();
+});
+
+/* ---------------------------
+   Drawing events (mouse + touch)
+   --------------------------- */
+function pointerPos(evt){
+  const rect = canvas.getBoundingClientRect();
+  const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+  const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  return { x: (clientX - rect.left) * (1/ (window.devicePixelRatio || 1)), y: (clientY - rect.top) * (1/ (window.devicePixelRatio || 1)) };
+}
+
+function startDrawing(e){
+  e.preventDefault();
+  isDrawing = true;
+  const p = pointerPos(e);
+  lastPos = p;
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
+}
+function draw(e){
+  if(!isDrawing) return;
+  e.preventDefault();
+  const p = pointerPos(e);
+  ctx.lineTo(p.x, p.y);
+  ctx.stroke();
+  lastPos = p;
+}
+function stopDrawing(e){
+  if(isDrawing){
+    isDrawing = false;
+    ctx.closePath();
+    // enable submit if API key present and canvas not blank
+    toggleSubmitButton();
+  }
+}
+
+canvas.addEventListener('mousedown', startDrawing);
+canvas.addEventListener('mousemove', draw);
+window.addEventListener('mouseup', stopDrawing);
+
+canvas.addEventListener('touchstart', startDrawing, {passive:false});
+canvas.addEventListener('touchmove', draw, {passive:false});
+canvas.addEventListener('touchend', stopDrawing, {passive:false});
+canvas.addEventListener('touchcancel', stopDrawing, {passive:false});
+
+/* ---------------------------
+   Canvas helpers
+   --------------------------- */
+function clearCanvas(){
+  // clear to white background
+  const ratio = window.devicePixelRatio || 1;
+  ctx.setTransform(ratio,0,0,ratio,0,0);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0,0,canvas.width/ratio,canvas.height/ratio);
+  resultBox.style.display = 'none';
+  scoreEl.textContent = "Match Score: —";
+  toggleSubmitButton();
+}
+
+/* is canvas blank check: checks if any pixel differs from white */
+function isCanvasBlank(){
+  try{
+    const ratio = window.devicePixelRatio || 1;
+    const w = Math.round(canvas.width/ratio);
+    const h = Math.round(canvas.height/ratio);
+    const data = ctx.getImageData(0,0,w,h).data;
+    for(let i=0;i<data.length;i+=4){
+      // if any pixel not white (255,255,255,255)
+      if(!(data[i]===255 && data[i+1]===255 && data[i+2]===255 && data[i+3]===255)){
+        return false;
+      }
+    }
+    return true;
+  }catch(err){
+    // fallback: assume not blank to be safe
+    return false;
+  }
+}
+
+/* ---------------------------
+   Mode switching & challenges
+   --------------------------- */
+function setMode(mode){
+  currentMode = mode;
+  mode1Btn.classList.remove('active');
+  mode2Btn.classList.remove('active');
+  mode1Btn.classList.remove('pressed');
+  mode2Btn.classList.remove('pressed');
+  if(mode===1){
+    mode1Btn.classList.add('active');
+    currentChallenge = '';
+    challengeLabel.textContent = 'Free Draw';
+    submitBtn.textContent = 'Guess My Drawing';
+  } else {
+    mode2Btn.classList.add('active');
+    setNewChallenge();
+    submitBtn.textContent = 'Submit for Rating';
+  }
+  clearCanvas();
+  toggleSubmitButton();
+}
+mode1Btn.addEventListener('click', ()=> setMode(1));
+mode2Btn.addEventListener('click', ()=> setMode(2));
+
+function setNewChallenge(){
+  const idx = Math.floor(Math.random() * challengeList.length);
+  currentChallenge = challengeList[idx];
+  challengeLabel.textContent = currentChallenge.toUpperCase();
+}
+
+/* initialize */
+setMode(1);
+updateToolUI();
+
+/* ---------------------------
+   API availability UI
+   --------------------------- */
+let isApiKeySet = !(typeof apiKey === 'undefined' || apiKey === null || apiKey === "" || apiKey === "YOUR_GEMINI_API_KEY_HERE");
+function toggleSubmitButton(){
+  const blank = isCanvasBlank();
+  submitBtn.disabled = !isApiKeySet || blank;
+  if(!isApiKeySet){
+    apiWarning.style.display = 'block';
+    submitBtn.disabled = true;
+    document.getElementById('serviceMsg').textContent = 'API Key not set — set apiKey before using AI features.';
+  } else {
+    apiWarning.style.display = 'none';
+    document.getElementById('serviceMsg').textContent = '';
+  }
+}
+toggleSubmitButton();
+
+/* ---------------------------
+   Prepare image payload
+   --------------------------- */
+function getBase64Image(){
+  // small resizing before sending (model works fine with moderate size)
+  // create temporary canvas copy to fixed 256x256 preserving aspect
+  const tmp = document.createElement('canvas');
+  const size = 256;
+  tmp.width = size;
+  tmp.height = size;
+  const tctx = tmp.getContext('2d');
+  // draw white bg then scaled image centered
+  tctx.fillStyle = '#ffffff';
+  tctx.fillRect(0,0,size,size);
+  // draw scaled
+  tctx.drawImage(canvas, 0, 0, tmp.width, tmp.height);
+  return tmp.toDataURL('image/png').split(',')[1];
+}
+
+/* ---------------------------
+   Submit drawing: algorithm + retry/backoff
+   --------------------------- */
+async function submitDrawing(){
+  if(!isApiKeySet || isCanvasBlank()){
+    console.error("Cannot submit: API key missing or canvas blank.");
+    return;
+  }
+
+  // UI changes
+  submitBtn.disabled = true;
+  spinner.style.display = 'inline-block';
+  const origText = submitBtn.textContent;
+
+  submitBtn.textContent = (currentMode === 1) ? "AI Thinking..." : "Rating Drawing...";
+
+  const base64Image = getBase64Image();
+
+  let systemPrompt, userQuery;
+  if(currentMode === 1){
+    systemPrompt = "You are an expert sketch recognition AI. Your task is to identify the object in the provided drawing. Respond ONLY with the single, most likely word or phrase for what the image depicts. Do not add extra text.";
+    userQuery = "What is the object drawn in this image?";
+  } else {
+    systemPrompt = `You are a drawing critique AI. Assess how accurately the provided image matches the concept: "${currentChallenge}". Respond ONLY with the rating percentage (0% to 100%) then a short encouraging comment. Example: '90% Great job!'`;
+    userQuery = `Rate this drawing of a "${currentChallenge}".`;
+  }
+
+  const payload = {
+    systemInstruction: { parts: [{ text: systemPrompt }] },
+    contents: [
+      {
+        role: "user",
+        parts: [
+          { text: userQuery },
+          {
+            inlineData: {
+              mimeType: "image/png",
+              data: base64Image
             }
-        });
-        // api add kkore de
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-        
-        // --- Canvas Setup ---
-        const canvas = document.getElementById('drawingCanvas');
-        const ctx = canvas.getContext('2d');
-        const submitBtn = document.getElementById('submitBtn');
-        const submitText = document.getElementById('submitText');
-        const spinner = document.getElementById('spinner');
-        const resultBox = document.getElementById('resultBox');
-        const resultTitle = document.getElementById('resultTitle');
-        const resultText = document.getElementById('resultText');
-        const currentPromptEl = document.getElementById('currentPrompt');
-        
-        // --- Drawing Tool State ---
-        let currentColor = '#333333';
-        let isErasing = false;
-        let penSize = 5;
-        let eraserSize = 25; 
+          }
+        ]
+      }
+    ]
+  };
 
-        // UI elements for tools
-        const colorPicker = document.getElementById('colorPicker');
-        const penBtn = document.getElementById('penBtn');
-        const eraserBtn = document.getElementById('eraserBtn');
-        const penSizeSlider = document.getElementById('penSizeSlider');
-        const eraserSizeSlider = document.getElementById('eraserSizeSlider');
-        
-        let isDrawing = false;
-        let currentMode = 1; // 1: Free Draw & Guess, 2: Prompted Draw & Rate
-        let currentChallenge = '';
-        
-        // --- EXPANDED LIST OF CHALLENGE WORDS (180+ items) ---
-        const challengeList = [
-            'Apple', 'Banana', 'Carrot', 'Dolphin', 'Elephant', 'Frog', 'Guitar', 'Hat', 'Ice Cream', 'Jellyfish',
-            'Kite', 'Laptop', 'Mushroom', 'Noodle', 'Owl', 'Pineapple', 'Queen', 'Robot', 'Star', 'Taco',
-            'Umbrella', 'Volcano', 'Watermelon', 'Xylophone', 'Yacht', 'Zebra', 'Airplane', 'Balloon', 'Camera', 'Diamond',
-            'Eel', 'Feather', 'Globe', 'Hammer', 'Island', 'Jacket', 'Kangaroo', 'Lighthouse', 'Magnet', 'Necklace',
-            'Octopus', 'Penguin', 'Quill', 'Rocket', 'Snowman', 'Train', 'Unicorn', 'Violin', 'Window', 'Wrench',
-            'Anvil', 'Bee', 'Castle', 'Dice', 'Egg', 'Fence', 'Grapes', 'Hedgehog', 'Igloo', 'Jar',
-            'Key', 'Lemon', 'Mitten', 'Net', 'Orange', 'Pencil', 'Question Mark', 'Ring', 'Snail', 'Tent',
-            'Toothbrush', 'Vase', 'Wagon', 'Yo-yo', 'Zipper', 'Acorn', 'Book', 'Candle', 'Cloud', 'Dinosaur',
-            'Door', 'Fireplace', 'Fork', 'Glasses', 'House', 'Insects', 'Juice Box', 'Kettle', 'Ladder', 'Moon',
-            'Nail', 'Pizza', 'Sofa', 'Spoon', 'Sun', 'Table', 'Television', 'Tire', 'Tooth', 'Traffic Light',
-            'Tree', 'Truck', 'Turtle', 'Watch', 'Whale', 'Whisk', 'Yarn', 'Backpack', 'Baseball Bat', 'Bowling Pin',
-            'Bridge', 'Broccoli', 'Bus', 'Cactus', 'Crayon', 'Crown', 'Cupcake', 'Donut', 'Drum', 'Envelope',
-            'Fan', 'Flashlight', 'Fox', 'Glove', 'Helmet', 'Jigsaw Puzzle', 'Lollipop', 'Microscope', 'Mirror', 'Mountain',
-            'Mouse', 'Paintbrush', 'Pants', 'Pillow', 'Pretzel', 'Pumkin', 'Radio', 'Rainbow', 'Roller Skate', 'Scissors',
-            'Shoe', 'Siren', 'Skateboard', 'Spaceship', 'Spider', 'Stairs', 'Stop Sign', 'Suitcase', 'Swing', 'Telescope',
-            'Tractor', 'Trombone', 'Trophy', 'Wallet', 'Washing Machine', 'Worm', 'Anchor', 'Blender', 'Boots', 'Bucket',
-            'Cabinet', 'Canoe', 'Compass', 'Crab', 'Desk', 'Eagle', 'Headphones', 'Hot Dog', 'Juggling Balls', 'Keyboard',
-            'Lobster', 'Microphone', 'Nose', 'Popsicle', 'Sack', 'Saucepan', 'Seashell', 'Shirt', 'Snake', 'Spiral',
-            'Squid', 'Stool', 'Street Lamp', 'Submarine', 'Swan', 'Sword', 'Teapot', 'Tiger', 'Toast', 'Towel',
-            'Unicycle', 'Vulture', 'Wallet', 'Wrench', 'Castle', 'Fence', 'Mug', 'Ship', 'Sock', 'Zipper',
-            'Camera', 'T-shirt', 'Globe', 'Lantern', 'Tent', 'Muffin', 'Cookie', 'Sailboat', 'Snowflake'
-        ];
-        // -----------------------------------------------------------------
+  // retry logic with exponential backoff
+  let attempts = 0;
+  const maxAttempts = 5;
+  let finalResult = null;
+  while(attempts < maxAttempts){
+    attempts++;
+    try{
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if(!res.ok){
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const j = await res.json();
+      // extract text (structure may vary by API; this matches expected response shape)
+      const txt = j.candidates?.[0]?.content?.parts?.[0]?.text || j.output?.[0]?.content?.text || null;
+      finalResult = (typeof txt === 'string') ? txt.trim() : JSON.stringify(j).slice(0,200);
+      break;
+    }catch(err){
+      console.warn(`Attempt ${attempts} failed:`, err);
+      if(attempts < maxAttempts){
+        const wait = Math.pow(2, attempts) * 500; // exponential backoff
+        await new Promise(r=>setTimeout(r, wait));
+      }else{
+        finalResult = null;
+      }
+    }
+  }
 
+  // show results
+  spinner.style.display = 'none';
+  submitBtn.textContent = origText;
+  submitBtn.disabled = false;
 
-        // --- Event Listeners for Tool Sliders ---
-        penSizeSlider.addEventListener('input', (e) => {
-            penSize = parseInt(e.target.value);
-            if (!isErasing) {
-                updateToolUI();
-            }
-        });
+  if(finalResult === null){
+    resultBox.style.display = 'block';
+    resultTitle.textContent = "Service Unavailable";
+    resultText.textContent = "Sorry — the AI service couldn't be reached. Try again later or check your API key.";
+    return;
+  }
 
-        eraserSizeSlider.addEventListener('input', (e) => {
-            eraserSize = parseInt(e.target.value);
-            if (isErasing) {
-                updateToolUI();
-            }
-        });
+  // Mode 1: guess (raw text)
+  if(currentMode === 1){
+    resultBox.style.display = 'block';
+    resultTitle.textContent = "AI's Guess:";
+    resultText.textContent = finalResult;
+    // update score area with heuristic: if guess equals challenge (case-insensitive) then 95% else unknown
+    if(currentChallenge && finalResult.toLowerCase() === currentChallenge.toLowerCase()){
+      scoreEl.textContent = "Match Score: 95%";
+    } else {
+      scoreEl.textContent = "Match Score: —";
+    }
+  } else {
+    // Mode 2: rating parsing
+    const pieces = finalResult.split(/\s+/);
+    let perc = null;
+    for(const p of pieces){
+      const m = p.match(/(\d{1,3})%/);
+      if(m){ perc = parseInt(m[1]); break; }
+    }
+    let comment = finalResult.replace(/.*?%?\s*/, '').trim();
+    if(perc === null){
+      // fallback: try to parse leading number 0-100
+      const m2 = finalResult.match(/(\d{1,3})(?!\S)/);
+      perc = m2 ? parseInt(m2[1]) : 0;
+    }
+    if(!comment) comment = "Keep practicing!";
 
+    resultBox.style.display = 'block';
+    resultTitle.textContent = `Match Score: ${perc}%`;
+    resultText.textContent = comment;
 
-        // Helper to check if the canvas is blank
-        function isCanvasBlank() {
-            // Note: This check only works for white backgrounds.
-            const pixelBuffer = new Uint32Array(ctx.getImageData(0, 0, canvas.width, canvas.height).data.buffer);
-            return !pixelBuffer.some(color => color !== 0);
-        }
+    // colorizing could be added; also set new challenge
+    setNewChallenge();
+    scoreEl.textContent = `Match Score: ${perc}%`;
+  }
+}
 
-        function toggleSubmitButton() {
-            // Only enable if API Key is set AND canvas is not blank
-            submitBtn.disabled = !isApiKeySet || isCanvasBlank();
-        }
+/* wire submit button */
+submitBtn.addEventListener('click', submitDrawing);
 
-        // --- Tool Functions ---
+/* expose setMode globally for keyboard/testing if needed */
+window.setMode = setMode;
+window.setNewChallenge = setNewChallenge;
 
-        function updateToolUI() {
-            // Reset Tailwind classes for both buttons
-            penBtn.className = "tool-button px-4 py-2 rounded-lg font-semibold transition-all duration-150";
-            eraserBtn.className = "tool-button px-4 py-2 rounded-lg font-semibold transition-all duration-150";
+/* initial blank canvas */
+clearCanvas();
+toggleSubmitButton();
 
-            if (isErasing) {
-                // Eraser mode is active: drawing in white (canvas background color)
-                ctx.strokeStyle = '#FFFFFF'; 
-                ctx.lineWidth = eraserSize; // Use adjustable eraser size
-                eraserBtn.classList.add('bg-blue-600', 'hover:bg-blue-700', 'text-white', 'shadow-md');
-                penBtn.classList.add('text-gray-700', 'border-2', 'border-gray-400', 'hover:bg-gray-100', 'bg-white');
-            } else {
-                // Pen mode is active
-                ctx.strokeStyle = currentColor; // Use adjustable color
-                ctx.lineWidth = penSize; // Use adjustable pen size
-                penBtn.classList.add('bg-blue-600', 'hover:bg-blue-700', 'text-white', 'shadow-md');
-                eraserBtn.classList.add('text-gray-700', 'border-2', 'border-gray-400', 'hover:bg-gray-100', 'bg-white');
-            }
-            ctx.lineCap = 'round'; // Ensure line cap is always round
-        }
-        
-        function setPenMode() {
-            isErasing = false;
-            updateToolUI();
-        }
-
-        function setEraserMode() {
-            isErasing = true;
-            updateToolUI();
-        }
-
-        colorPicker.addEventListener('input', (e) => {
-            currentColor = e.target.value;
-            setPenMode(); // Automatically switch to pen mode with new color
-        });
-
-        // Expose to global scope for HTML
-        window.setPenMode = setPenMode;
-        window.setEraserMode = setEraserMode;
-
-        // --- Drawing Logic ---
-
-        function getMousePos(event) {
-            const rect = canvas.getBoundingClientRect();
-            // Handle touch event if provided
-            const clientX = event.touches ? event.touches[0].clientX : event.clientX;
-            const clientY = event.touches ? event.touches[0].clientY : event.clientY;
-            
-            // Scale coordinates to actual canvas resolution if display size is different
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            
-            return {
-                x: (clientX - rect.left) * scaleX,
-                y: (clientY - rect.top) * scaleY
-            };
-        }
-
-        function startDrawing(e) {
-            e.preventDefault();
-            if (!isApiKeySet) return; // Prevent drawing if key is missing
-            isDrawing = true;
-            const pos = getMousePos(e);
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-        }
-
-        function draw(e) {
-            if (!isDrawing) return;
-            e.preventDefault();
-            const pos = getMousePos(e);
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-        }
-
-        function stopDrawing() {
-            isDrawing = false;
-            ctx.closePath();
-            toggleSubmitButton();
-        }
-
-        // Add event listeners for both mouse and touch
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseout', stopDrawing);
-
-        canvas.addEventListener('touchstart', startDrawing);
-        canvas.addEventListener('touchmove', draw);
-        canvas.addEventListener('touchend', stopDrawing);
-        canvas.addEventListener('touchcancel', stopDrawing);
-
-
-        function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            resultBox.classList.add('hidden');
-            toggleSubmitButton();
-        }
-        
-        // --- Canvas Initialization and Resizing ---
-        function resizeCanvas() {
-            // Set canvas display size responsively
-            const containerWidth = canvas.parentNode.clientWidth;
-            // Maintain a square canvas aspect ratio based on the container width, max 400px
-            const size = Math.min(containerWidth, 400); 
-            canvas.style.width = `${size}px`;
-            canvas.style.height = `${size}px`;
-            
-            // Save current drawing, resize, and restore (prevents clearing on resize)
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            
-            // Set internal resolution (fixed for consistency with the model)
-            canvas.width = 400;
-            canvas.height = 400;
-            
-            ctx.putImageData(imageData, 0, 0);
-            
-            // Reapply drawing settings
-            updateToolUI();
-        }
-
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
-        toggleSubmitButton(); // Initial check
-
-        // --- Game Mode Logic ---
-
-        function setMode(mode) {
-            currentMode = mode;
-            
-            // Reset mode buttons styling
-            document.getElementById('mode1Btn').classList.remove('bg-blue-600', 'text-white', 'border-2', 'border-blue-600', 'hover:bg-blue-700', 'hover:bg-blue-50');
-            document.getElementById('mode1Btn').classList.add('text-blue-600', 'font-semibold', 'border-2', 'border-blue-600', 'hover:bg-blue-50');
-            document.getElementById('mode2Btn').classList.remove('bg-blue-600', 'text-white', 'border-2', 'border-blue-600', 'hover:bg-blue-700', 'hover:bg-blue-50');
-            document.getElementById('mode2Btn').classList.add('text-blue-600', 'font-semibold', 'border-2', 'border-blue-600', 'hover:bg-blue-50');
-
-            if (mode === 1) {
-                document.getElementById('mode1Btn').classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
-                document.getElementById('mode1Btn').classList.remove('text-blue-600', 'border-2', 'border-blue-600');
-                document.getElementById('mode2Prompt').classList.add('hidden');
-                submitText.textContent = "Guess My Drawing";
-                currentChallenge = '';
-            } else {
-                document.getElementById('mode2Btn').classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
-                document.getElementById('mode2Btn').classList.remove('text-blue-600', 'border-2', 'border-blue-600');
-                document.getElementById('mode2Prompt').classList.remove('hidden');
-                submitText.textContent = "Submit for Rating";
-                setNewChallenge();
-            }
-            clearCanvas();
-        }
-
-        function setNewChallenge() {
-            const randomIndex = Math.floor(Math.random() * challengeList.length);
-            currentChallenge = challengeList[randomIndex];
-            currentPromptEl.textContent = currentChallenge.toUpperCase();
-        }
-
-        // Set initial mode and tools
-        setMode(1);
-        updateToolUI(); // Ensure tools are styled correctly on load
-
-        // --- API Interaction (Multimodal) ---
-
-        function getBase64Image() {
-            // Get data URL and extract base64 part
-            const dataUrl = canvas.toDataURL('image/png');
-            return dataUrl.split(',')[1];
-        }
-
-        async function submitDrawing() {
-            if (!isApiKeySet || isCanvasBlank()) {
-                console.error('API Key is missing or canvas is blank.'); 
-                return;
-            }
-
-            submitBtn.disabled = true;
-            spinner.classList.remove('hidden');
-            submitText.textContent = currentMode === 1 ? "AI Thinking..." : "Rating Drawing...";
-            resultBox.classList.add('hidden');
-            
-            const base64Image = getBase64Image();
-            
-            let systemPrompt;
-            let userQuery;
-
-            if (currentMode === 1) {
-                // Mode 1: Guess what the user drew (classification)
-                systemPrompt = "You are an expert sketch recognition AI. Your task is to identify the object in the provided drawing. Respond ONLY with the single, most likely word or phrase for what the image depicts. Do not add any extra text, confidence scores, or sentences.";
-                userQuery = "What is the object drawn in this image?";
-            } else {
-                // Mode 2: Rate how well the drawing matches the prompt (scoring)
-                systemPrompt = `You are a drawing critique AI. Your task is to assess how accurately the provided image matches the concept: "${currentChallenge}". Respond ONLY with the rating percentage (from 0% to 100%) followed by a space and a brief, encouraging comment. Example: '90% Great work!'`;
-                userQuery = `Rate this drawing of a "${currentChallenge}".`;
-            }
-
-            const payload = {
-                contents: [
-                    {
-                        role: "user",
-                        parts: [
-                            { text: userQuery },
-                            {
-                                inlineData: {
-                                    mimeType: "image/png",
-                                    data: base64Image
-                                }
-                            }
-                        ]
-                    }
-                ],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-            };
-
-            let result = '';
-            let attempts = 0;
-            const maxAttempts = 5;
-
-            while (attempts < maxAttempts) {
-                try {
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-
-                    const jsonResult = await response.json();
-                    
-                    // Extract the text response
-                    result = jsonResult.candidates?.[0]?.content?.parts?.[0]?.text || 'Error: Could not process response.';
-                    break; // Exit loop on success
-
-                } catch (error) {
-                    attempts++;
-                    console.error(`Attempt ${attempts} failed:`, error);
-                    if (attempts < maxAttempts) {
-                        const delay = Math.pow(2, attempts) * 1000; // Exponential backoff
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                    } else {
-                        result = 'Sorry, the AI service is currently unavailable. Please try again later.';
-                    }
-                }
-            }
-
-            // --- Display Result ---
-            resultBox.classList.remove('hidden');
-            
-            if (currentMode === 1) {
-                // Mode 1 Result: Guess
-                resultTitle.textContent = "AI's Guess:";
-                resultTitle.classList.remove('text-green-600', 'text-red-600');
-                resultTitle.classList.add('text-blue-600');
-                resultText.textContent = result.trim();
-                
-            } else {
-                // Mode 2 Result: Rating
-                
-                // Parsing for percentage and comment
-                const parts = result.trim().split(' ');
-                const percentageText = parts[0]; 
-                const match = percentageText.match(/(\d{1,3})%/);
-                let percentage = match ? parseInt(match[1]) : 0;
-                let comment = parts.slice(1).join(' ').trim(); 
-                
-                if (comment.length === 0 && percentage > 0) {
-                    comment = "The AI gave a score but no specific comment. Keep practicing!";
-                } else if (comment.length === 0 && percentage === 0) {
-                    comment = "The AI couldn't rate the drawing. Try a clearer sketch!";
-                }
-
-                resultTitle.textContent = `Match Score: ${percentage}%`;
-                
-                if (percentage >= 70) {
-                    resultTitle.classList.remove('text-red-600', 'text-blue-600');
-                    resultTitle.classList.add('text-green-600');
-                } else {
-                    resultTitle.classList.remove('text-green-600', 'text-blue-600');
-                    resultTitle.classList.add('text-red-600');
-                }
-                
-                resultText.textContent = comment;
-
-                // Give a new challenge after rating
-                setNewChallenge();
-            }
-
-            // Reset UI
-            spinner.classList.add('hidden');
-            submitText.textContent = currentMode === 1 ? "Guess My Drawing" : "Submit for Rating";
-            submitBtn.disabled = false;
-        }
-
-    </script>
+</script>
 </body>
 </html>
